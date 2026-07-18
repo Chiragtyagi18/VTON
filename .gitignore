@@ -1,0 +1,38 @@
+# Dependencies
+*/node_modules/
+*/.pnp
+.pnp.*
+
+# Python
+**/__pycache__/
+*.pyc
+*.pyo
+**/.venv/
+**/venv/
+
+# Environment files
+**/.env
+**/.env.local
+**/.env.*.local
+
+# IDE / OS
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Next.js build
+frontend/.next/
+frontend/out/
+
+# Backend build / data
+backend/static/uploads/*
+!backend/static/uploads/.gitkeep
+
+# TypeScript
+*.tsbuildinfo
+
+docs/
