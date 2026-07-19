@@ -11,8 +11,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
  *  2. Every 2.5s: GET /api/v1/tryon/status/{task_id}
  *       until status === "completed" | "failed".
  *
- * Multiple garments are sent as an array and applied sequentially by the
- * backend (e.g. a top then a bottom).
+ * A single garment is sent and applied by the backend.
  *
  * Manages local React state for loading, progressive status messages,
  * error boundaries and the final output URL.
@@ -47,7 +46,7 @@ export interface GarmentPayload {
 
 export interface GenerateParams {
   userImageUrl: string;
-  garments: GarmentPayload[];
+  garment: GarmentPayload;
 }
 
 interface StatusResponse {
@@ -191,11 +190,11 @@ export function useVirtualTryOn(): UseVirtualTryOnResult {
           },
           body: JSON.stringify({
             user_image_url: params.userImageUrl,
-            garments: params.garments.map((g) => ({
-              image_url: g.imageUrl,
-              garment_description: g.description ?? "A stylish garment",
-              is_bottom: g.isBottom ?? false,
-            })),
+            garment: {
+              image_url: params.garment.imageUrl,
+              garment_description: params.garment.description ?? "A stylish garment",
+              is_bottom: params.garment.isBottom ?? false,
+            },
           }),
         });
 

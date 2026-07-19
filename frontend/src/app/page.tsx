@@ -301,8 +301,8 @@ export default function Home() {
     uploadError: string | null;
   }>({ previewUrl: null, remoteUrl: "", uploading: false, uploadError: null });
 
-  // Garments are multiple file uploads.
-  const [garments, setGarments] = useState<GarmentItem[]>(() => [newGarment()]);
+  // Garment — single upload only.
+  const [garment, setGarment] = useState<GarmentItem>(() => newGarment());
 
   const { generate, reset, phase, statusLabel, isLoading, resultUrl, error } =
     useVirtualTryOn();
@@ -322,60 +322,36 @@ export default function Home() {
     if (phase !== "completed") celebratedRef.current = false;
   }, [phase, resultUrl]);
 
-  /* ----------------------------- garment helpers ----------------------------- */
-  const patchGarment = useCallback(
-    (id: string, patch: Partial<GarmentItem>) => {
-      setGarments((prev) =>
-        prev.map((g) => (g.id === id ? { ...g, ...patch } : g)),
-      );
-    },
-    [],
-  );
-
+  /* ----------------------------- garment helper ------------------------------ */
   const handleGarmentFile = useCallback(
     async (id: string, file: File) => {
-      // Revoke any previous preview object URL for this card before replacing.
-      setGarments((prev) => {
-        const existing = prev.find((g) => g.id === id);
-        if (existing?.previewUrl) URL.revokeObjectURL(existing.previewUrl);
-        return prev;
-      });
+      // Revoke any previous preview object URL.
+      if (garment.previewUrl) URL.revokeObjectURL(garment.previewUrl);
 
       const previewUrl = URL.createObjectURL(file);
-      patchGarment(id, {
+      setGarment((prev) => ({
+        ...prev,
         previewUrl,
         fileName: file.name,
         remoteUrl: "",
         uploading: true,
         uploadError: null,
-      });
+      }));
 
       try {
         const url = await uploadImage(file);
-        patchGarment(id, { remoteUrl: url, uploading: false });
+        setGarment((prev) => ({ ...prev, remoteUrl: url, uploading: false }));
       } catch (err) {
-        patchGarment(id, {
+        setGarment((prev) => ({
+          ...prev,
           uploading: false,
           uploadError:
             err instanceof Error ? err.message : "Upload failed. Try again.",
-        });
+        }));
       }
     },
-    [patchGarment],
+    [garment.previewUrl],
   );
-
-  const addGarment = useCallback(() => {
-    setGarments((prev) => [...prev, newGarment()]);
-  }, []);
-
-  const removeGarment = useCallback((id: string) => {
-    setGarments((prev) => {
-      const target = prev.find((g) => g.id === id);
-      if (target?.previewUrl) URL.revokeObjectURL(target.previewUrl);
-      const next = prev.filter((g) => g.id !== id);
-      return next.length > 0 ? next : [newGarment()];
-    });
-  }, []);
 
   const clearUser = useCallback(() => {
     // Revoke any local preview object URL.
@@ -407,25 +383,24 @@ export default function Home() {
   }, []);
 
   /* -------------------------------- generate -------------------------------- */
-  const readyGarments = garments.filter((g) => Boolean(g.remoteUrl));
-  const anyUploading = garments.some((g) => g.uploading);
+  const garmentReady = Boolean(garment.remoteUrl);
 
   const userPhotoReady = Boolean(userPhoto.remoteUrl);
 
   const canGenerate =
-    userPhotoReady && readyGarments.length > 0 && !anyUploading && !isLoading;
+    userPhotoReady && garmentReady && !garment.uploading && !isLoading;
 
   const handleGenerate = useCallback(() => {
     if (!canGenerate) return;
     void generate({
       userImageUrl: userPhoto.remoteUrl,
-      garments: readyGarments.map((g) => ({
-        imageUrl: g.remoteUrl,
-        description: g.description,
-        isBottom: g.isBottom,
-      })),
+      garment: {
+        imageUrl: garment.remoteUrl,
+        description: garment.description,
+        isBottom: garment.isBottom,
+      },
     });
-  }, [canGenerate, generate, userPhoto.remoteUrl, readyGarments]);
+  }, [canGenerate, generate, userPhoto.remoteUrl, garment]);
 
   return (
     <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6 lg:px-8">
@@ -440,8 +415,7 @@ export default function Home() {
             VTO Studio
           </h1>
           <p className="max-w-2xl text-sm text-zinc-500 dark:text-zinc-400">
-            Add your photo and upload multiple garments — e.g. a shirt and
-            pants — to preview a full outfit, rendered by AI.
+            Add your photo and upload a garment (top or bottom) to preview it on you, rendered by AI.
           </p>
         </div>
         <ThemeToggle />
@@ -462,12 +436,10 @@ export default function Home() {
           />
 
           <GarmentUploader
-            garments={garments}
-            onAdd={addGarment}
+            garment={garment}
             onFile={handleGarmentFile}
-            onDescription={(id, value) => patchGarment(id, { description: value })}
-            onToggleBottom={(id, value) => patchGarment(id, { isBottom: value })}
-            onRemove={removeGarment}
+            onDescription={(id, value) => setGarment((prev) => ({ ...prev, description: value }))}
+            onToggleBottom={(id, value) => setGarment((prev) => ({ ...prev, isBottom: value }))}
           />
 
           {/* Action */}
@@ -493,20 +465,17 @@ export default function Home() {
                 <>
                   <Sparkles className="h-4 w-4" />
                   Generate Try-On
-                  {readyGarments.length > 1
-                    ? ` (${readyGarments.length} garments)`
-                    : ""}
                 </>
               )}
             </motion.button>
 
             {!canGenerate && !isLoading && (
               <p className="mt-2 text-center text-xs text-zinc-400">
-                {anyUploading
-                  ? "Waiting for garment uploads to finish…"
+                {garment.uploading
+                  ? "Waiting for garment upload to finish…"
                   : userPhoto.uploading
                     ? "Uploading your photo…"
-                    : "Add your photo (upload or URL) and upload at least one garment."}
+                    : "Add your photo (upload or URL) and upload a garment."}
               </p>
             )}
           </div>
