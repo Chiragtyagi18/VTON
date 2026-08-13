@@ -21,7 +21,7 @@ from typing import Optional
 
 
 
-from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi import FastAPI, HTTPException, Request, UploadFile, File
 
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -81,12 +81,6 @@ UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 # Hugging Face Space endpoint
 
 HF_SPACE = os.environ.get("HF_SPACE", "yisol/IDM-VTON")
-
-BACKEND_HOST = os.environ.get("BACKEND_HOST", "http://localhost:8000")
-
-STATIC_OUTPUTS_URL = f"{BACKEND_HOST}/static/outputs"
-
-STATIC_UPLOADS_URL = f"{BACKEND_HOST}/static/uploads"
 
 
 
@@ -252,7 +246,10 @@ app.add_middleware(
 
     CORSMiddleware,
 
-    allow_origins=["http://localhost:3000"],
+    allow_origins=[
+        "http://localhost:3000",
+        "https://vton-nu.vercel.app",
+    ],
 
     allow_credentials=True,
 
@@ -338,11 +335,9 @@ def _resolve_image(url_or_path: str) -> str:
 
     else:
 
-        static_url = f"{BACKEND_HOST}/static/"
+        if "/static/" in url_or_path:
 
-        if url_or_path.startswith(static_url):
-
-            relative = url_or_path[len(static_url):]
+            relative = url_or_path.split("/static/", 1)[1]
 
             candidate = STATIC_DIR / relative
 
@@ -468,7 +463,7 @@ def _predict_single(client: Client, person, garment: GarmentItem):
 
 
 
-def _run_tryon(task_id: str, params: TryOnRequest) -> None:
+def _run_tryon(task_id: str, params: TryOnRequest, base_url: str) -> None:
 
     """Execute the Gradio call(s) in a background thread and persist the result.
 
@@ -527,7 +522,7 @@ def _run_tryon(task_id: str, params: TryOnRequest) -> None:
             log.exception("Failed to copy output to static outputs: %s", exc)
             raise
 
-        result_url = f"{STATIC_OUTPUTS_URL}/{task_id}.png"
+        result_url = f"{base_url}/static/outputs/{task_id}.png"
 
 
 
@@ -571,7 +566,7 @@ def _run_tryon(task_id: str, params: TryOnRequest) -> None:
 
 )
 
-async def upload_image(file: UploadFile = File(...)):
+async def upload_image(request: Request, file: UploadFile = File(...)):
 
     """
 
@@ -601,7 +596,9 @@ async def upload_image(file: UploadFile = File(...)):
 
 
 
-    return UploadResponse(url=f"{STATIC_UPLOADS_URL}/{file_id}")
+    base_url = str(request.base_url).rstrip("/")
+
+    return UploadResponse(url=f"{base_url}/static/uploads/{file_id}")
 
 
 
@@ -617,7 +614,7 @@ async def upload_image(file: UploadFile = File(...)):
 
 )
 
-async def generate_tryon(request: TryOnRequest):
+async def generate_tryon(request: TryOnRequest, http_request: Request):
 
     """
 
@@ -633,6 +630,8 @@ async def generate_tryon(request: TryOnRequest):
 
     task_id = str(uuid.uuid4())
 
+    base_url = str(http_request.base_url).rstrip("/")
+
 
 
     with _lock:
@@ -645,13 +644,15 @@ async def generate_tryon(request: TryOnRequest):
 
             "error": None,
 
+            "base_url": base_url,
+
         }
 
 
 
     # Spawn background thread (avoid asyncio event loop blocking)
 
-    thread = threading.Thread(target=_run_tryon, args=(task_id, request), daemon=True)
+    thread = threading.Thread(target=_run_tryon, args=(task_id, request, base_url), daemon=True)
 
     thread.start()
 

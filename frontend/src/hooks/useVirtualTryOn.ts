@@ -17,7 +17,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
  * error boundaries and the final output URL.
  */
 
-const API_BASE = "http://localhost:8000/api/v1";
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_BASE ?? "https://vton-1t7q.onrender.com/api/v1";
 const POLL_INTERVAL_MS = 2500;
 
 export type TryOnPhase =
