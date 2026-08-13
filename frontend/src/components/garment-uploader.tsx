@@ -50,8 +50,6 @@ export function GarmentUploader({
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
 
-  const hasImage = Boolean(garment.previewUrl);
-
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
@@ -67,27 +65,22 @@ export function GarmentUploader({
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35 }}
-      className={[
-        "group relative rounded-2xl border bg-white p-4 shadow-sm dark:bg-zinc-900",
-        "transition-transform duration-300 hover:-translate-y-2 hover:shadow-xl",
-        garment.remoteUrl
-          ? "border-primary-400 ring-2 ring-primary-500/70"
-          : "border-zinc-200 dark:border-zinc-800",
-      ].join(" ")}
+      className="group rounded-xl border border-zinc-200 bg-white/60 p-4 backdrop-blur-sm transition-all duration-300 hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900/60"
     >
-      <div className="mb-3 flex items-center gap-2">
-        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-50 text-primary-600 dark:bg-primary-500/10 dark:text-primary-300">
-          <Shirt className="h-5 w-5" />
+      {/* Header */}
+      <div className="mb-3 flex items-center gap-2.5">
+        <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 text-white shadow-sm">
+          <Shirt className="h-4 w-4" />
         </span>
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <h3 className="truncate text-sm font-semibold">Garment</h3>
-          <p className="truncate text-xs text-zinc-500 dark:text-zinc-400">
+          <p className="truncate text-[11px] text-zinc-400">
             {garment.isBottom ? "Bottom (pants / jeans)" : "Top / shirt / jacket"}
           </p>
         </div>
       </div>
 
-      {/* Locked 3:4 aspect ratio drop / preview area */}
+      {/* Drop zone */}
       <button
         type="button"
         onClick={() => inputRef.current?.click()}
@@ -98,40 +91,44 @@ export function GarmentUploader({
         onDragLeave={() => setDragging(false)}
         onDrop={handleDrop}
         className={[
-          "relative flex aspect-[3/4] w-full items-center justify-center overflow-hidden rounded-xl",
-          "bg-zinc-50 dark:bg-zinc-800/60",
+          "relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-xl transition-all duration-200",
+          !garment.previewUrl && !garment.uploading && !dragging
+            ? "cursor-pointer border-2 border-dashed border-zinc-300 bg-zinc-50 hover:border-primary-400 hover:bg-primary-50/30 dark:border-zinc-600 dark:bg-zinc-800/40 dark:hover:border-primary-500 dark:hover:bg-primary-500/5"
+            : "",
           dragging
-            ? "border-2 border-dashed border-primary-500"
-            : "border-2 border-dashed border-zinc-200 dark:border-zinc-700",
+            ? "border-2 border-dashed border-primary-400 bg-primary-50/30 dark:border-primary-500 dark:bg-primary-500/10"
+            : "",
+          garment.previewUrl || garment.uploading
+            ? "border-2 border-zinc-200 dark:border-zinc-700"
+            : "",
         ].join(" ")}
       >
         {garment.previewUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
           <img
             src={garment.previewUrl}
             alt="Garment preview"
             className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
         ) : (
-          <div className="flex flex-col items-center gap-2 px-4 text-center text-zinc-400">
-            <UploadCloud className="h-8 w-8" />
-            <span className="text-xs font-medium">Tap or drop an image</span>
-            <span className="text-[11px] text-zinc-400">JPG or PNG</span>
+          <div className="flex flex-col items-center gap-1.5 px-3 text-center text-zinc-400">
+            <UploadCloud className="h-7 w-7" />
+            <span className="text-xs font-medium">Click or drop</span>
           </div>
         )}
 
-        {/* Upload status overlay */}
+        {/* Upload overlay */}
         {garment.uploading && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-white/60 backdrop-blur-sm dark:bg-black/50">
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 bg-white/60 backdrop-blur-sm dark:bg-black/50">
             <Loader2 className="h-6 w-6 animate-spin text-primary-600" />
             <span className="text-xs font-medium text-zinc-600 dark:text-zinc-300">
               Uploading…
             </span>
           </div>
         )}
+
         {!garment.uploading && garment.remoteUrl && (
-          <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-emerald-500 px-2 py-0.5 text-[11px] font-semibold text-white shadow">
-            <CheckCircle2 className="h-3 w-3" />
+          <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-emerald-500 px-2 py-0.5 text-[10px] font-semibold text-white shadow">
+            <CheckCircle2 className="h-2.5 w-2.5" />
             Uploaded
           </span>
         )}
@@ -150,28 +147,28 @@ export function GarmentUploader({
       </button>
 
       {garment.uploadError && (
-        <p className="mt-2 text-xs text-red-500">{garment.uploadError}</p>
+        <p className="mt-1.5 text-[11px] text-red-500">{garment.uploadError}</p>
       )}
 
-      {/* Description */}
-      <input
-        type="text"
-        value={garment.description}
-        onChange={(e) => onDescription(garment.id, e.target.value)}
-        placeholder="e.g. a red cotton t-shirt"
-        className="mt-3 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:border-primary-400 dark:border-zinc-700 dark:bg-zinc-900"
-      />
-
-      {/* Top / bottom toggle */}
-      <label className="mt-2 flex items-center gap-2 text-xs text-zinc-600 dark:text-zinc-300">
+      {/* Description & toggle */}
+      <div className="mt-3 flex flex-col gap-2">
         <input
-          type="checkbox"
-          checked={garment.isBottom}
-          onChange={(e) => onToggleBottom(garment.id, e.target.checked)}
-          className="h-4 w-4 rounded border-zinc-300 text-primary-600 focus:ring-primary-500"
+          type="text"
+          value={garment.description}
+          onChange={(e) => onDescription(garment.id, e.target.value)}
+          placeholder="e.g. red cotton t-shirt"
+          className="w-full rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-xs outline-none transition-colors focus:border-primary-400 dark:border-zinc-700 dark:bg-zinc-900"
         />
-        This is a bottom (pants / jeans)
-      </label>
+        <label className="flex cursor-pointer items-center gap-1.5 text-[11px] text-zinc-500 dark:text-zinc-400">
+          <input
+            type="checkbox"
+            checked={garment.isBottom}
+            onChange={(e) => onToggleBottom(garment.id, e.target.checked)}
+            className="h-3.5 w-3.5 rounded border-zinc-300 text-primary-600 focus:ring-primary-500"
+          />
+          This is a bottom (pants / jeans)
+        </label>
+      </div>
     </motion.div>
   );
 }
